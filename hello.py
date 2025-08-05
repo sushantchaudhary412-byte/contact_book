@@ -144,7 +144,7 @@ def show_blocked():
 # GUI setup
 root = tk.Tk()
 root.title("Contact Book")
-root.geometry("640x580")
+root.state("zoomed")  # Full screen
 root.resizable(False, False)
 
 # Menu Bar
@@ -159,7 +159,6 @@ main_menu.add_command(label="🚫 Blocked Contacts", command=show_blocked)
 main_menu.add_command(label="🔄 Clear", command=lambda: refresh_table())
 main_menu.add_separator()
 main_menu.add_command(label="❌ Exit", command=root.quit)
-
 
 # Input Form
 form_frame = tk.LabelFrame(root, text="Add New Contact", padx=10, pady=10)
