@@ -2,7 +2,9 @@
     {
         "name": ".",
         "phone": "4446448464",
-        "email": ""
+        "email": "",
+        "favourite": false,
+        "blocked": false
     },
     {
         "name": "Aaarav",
@@ -43,7 +45,9 @@
     {
         "name": "pushkar",
         "phone": "252548613",
-        "email": ""
+        "email": "",
+        "favourite": true,
+        "blocked": false
     },
     {
         "name": "sbjsvbobob",
@@ -58,16 +62,22 @@
     {
         "name": "Sushant Chaudhary",
         "phone": "9309960488",
-        "email": ""
+        "email": "",
+        "favourite": true,
+        "blocked": false
     },
     {
         "name": "Umesh Pandey",
         "phone": "789456123",
-        "email": ""
+        "email": "",
+        "favourite": true,
+        "blocked": false
     },
     {
         "name": "vonvnvnovw",
         "phone": "587413669",
-        "email": ""
+        "email": "",
+        "blocked": true,
+        "favourite": false
     }
 ]
