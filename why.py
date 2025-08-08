@@ -231,7 +231,7 @@ def show_app_lock():
 
     def unlock():
         password = password_entry.get()
-        if password == "1234":  # Change password here
+        if password == "1317":  # Change password here
             lock_window.destroy()
             show_contact_book()
         else:

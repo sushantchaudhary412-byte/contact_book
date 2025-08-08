@@ -1,228 +1,290 @@
+import customtkinter as ctk
 import tkinter as tk
 from tkinter import messagebox, ttk, simpledialog
+from PIL import Image, ImageTk
 import json, os
 
-FILE = "contacts.json"
+# Global Variables
+USER_FILE = "users.json"
+contacts = []
+current_user = None
+contacts_file = None
 
-# Load contacts
+# --------- Contact Functions ---------
 def load_contacts():
-    if os.path.exists(FILE):
-        with open(FILE, "r") as f:
-            return json.load(f)
+    if os.path.exists(contacts_file):
+        with open(contacts_file, "r") as f:
+            try:
+                raw_contacts = json.load(f)
+                return [
+                    {
+                        "name": c["name"],
+                        "phone": c["phone"],
+                        "email": c.get("email", ""),
+                        "status": c.get("status", "normal")
+                    }
+                    for c in raw_contacts
+                ]
+            except json.JSONDecodeError:
+                return []
     return []
 
-# Save contacts
 def save_contacts():
-    with open(FILE, "w") as f:
+    with open(contacts_file, "w") as f:
         json.dump(contacts, f, indent=4)
 
-# Add contact with auto alphabetical insertion
+# --------- User Functions ---------
+def save_user(username, password):
+    if not os.path.exists(USER_FILE):
+        with open(USER_FILE, "w") as f:
+            json.dump({}, f)
+    with open(USER_FILE, "r") as f:
+        users = json.load(f)
+    if username in users:
+        messagebox.showerror("Error", "Username already exists!")
+        return
+    users[username] = password
+    with open(USER_FILE, "w") as f:
+        json.dump(users, f, indent=4)
+
+def check_user(username, password):
+    if not os.path.exists(USER_FILE):
+        return False
+    with open(USER_FILE, "r") as f:
+        users = json.load(f)
+    return users.get(username) == password
+
+# --------- Contact Management ---------
 def add_contact():
-    name = name_var.get().strip()
-    phone = phone_var.get().strip()
-    email = email_var.get().strip()
-
-    if name and phone:
-        contact = {
-            "name": name,
-            "phone": phone,
-            "email": email,
-            "favourite": False,
-            "blocked": False
-        }
-        contacts.append(contact)
-        contacts.sort(key=lambda x: x['name'].lower())  # Alphabetical
-        save_contacts()
-        refresh_table()
-        clear_fields()
-    else:
-        messagebox.showwarning("Required", "Name and Phone are required.")
-
-# Clear input fields
-def clear_fields():
+    name, phone, email = name_var.get(), phone_var.get(), email_var.get()
+    if not name or not phone:
+        messagebox.showerror("Error", "Name and Phone are required!")
+        return
+    for c in contacts:
+        if c["phone"] == phone:
+            messagebox.showerror("Error", "Contact already exists!")
+            return
+    contacts.append({"name": name, "phone": phone, "email": email, "status": "normal"})
+    save_contacts()
+    refresh_table()
     name_var.set("")
     phone_var.set("")
     email_var.set("")
+    messagebox.showinfo("Success", "Contact added!")
 
-# Delete selected contacts
 def delete_contact():
-    selected_items = tree.selection()
-    if not selected_items:
-        messagebox.showinfo("Select", "Select contact(s) to delete.")
-        return
-
-    for item in selected_items:
-        idx = tree.index(item)
-        contacts.pop(idx)
+    selected = tree.selection()
+    for item in selected:
+        values = tree.item(item, "values")
+        contacts[:] = [c for c in contacts if not (c["name"] == values[0] and c["phone"] == values[1])]
     save_contacts()
     refresh_table()
 
-# Edit contact
 def edit_contact():
     selected = tree.selection()
-    if selected:
-        idx = tree.index(selected[0])
-        contact = contacts[idx]
+    if not selected:
+        return
+    item = selected[0]
+    values = tree.item(item, "values")
+    for i, c in enumerate(contacts):
+        if c["name"] == values[0] and c["phone"] == values[1]:
+            name = simpledialog.askstring("Edit", "New name:", initialvalue=c["name"])
+            phone = simpledialog.askstring("Edit", "New phone:", initialvalue=c["phone"])
+            email = simpledialog.askstring("Edit", "New email:", initialvalue=c["email"])
+            if name and phone:
+                contacts[i] = {"name": name, "phone": phone, "email": email, "status": c["status"]}
+                break
+    save_contacts()
+    refresh_table()
 
-        new_name = simpledialog.askstring("Edit Name", "Name:", initialvalue=contact["name"])
-        new_phone = simpledialog.askstring("Edit Phone", "Phone:", initialvalue=contact["phone"])
-        new_email = simpledialog.askstring("Edit Email", "Email:", initialvalue=contact["email"])
+def toggle_status(status_type):
+    selected = tree.selection()
+    for item in selected:
+        values = tree.item(item, "values")
+        for c in contacts:
+            if c["name"] == values[0] and c["phone"] == values[1]:
+                c["status"] = status_type if c["status"] != status_type else "normal"
+                break
+    save_contacts()
+    refresh_table()
 
-        if new_name and new_phone:
-            contacts[idx] = {
-                "name": new_name,
-                "phone": new_phone,
-                "email": new_email or "",
-                "favourite": contact.get("favourite", False),
-                "blocked": contact.get("blocked", False)
-            }
-            contacts.sort(key=lambda x: x['name'].lower())
-            save_contacts()
-            refresh_table()
-        else:
-            messagebox.showwarning("Required", "Name and Phone can't be empty.")
+def show_filtered_contacts(status_type):
+    filtered = [c for c in contacts if c["status"] == status_type]
+    refresh_table(filtered)
 
-# Refresh table
 def refresh_table(filtered=None):
     tree.delete(*tree.get_children())
-    data = filtered if filtered is not None else contacts
-    for contact in data:
-        status = "⭐" if contact.get("favourite") else "🚫" if contact.get("blocked") else "Normal"
-        tree.insert("", tk.END, values=(contact["name"], contact["phone"], contact["email"], status))
+    for c in (filtered if filtered is not None else contacts):
+        tree.insert("", "end", values=(c["name"], c["phone"], c["email"], c["status"]))
 
-# Filter contacts by name
-def search_contact(event=None):
-    keyword = search_var.get().lower()
-    tree.delete(*tree.get_children())
-    for contact in contacts:
-        if keyword in contact["name"].lower():
-            status = "⭐" if contact.get("favourite") else "🚫" if contact.get("blocked") else "Normal"
-            tree.insert("", tk.END, values=(contact["name"], contact["phone"], contact["email"], status))
+def search_contact(*args):
+    term = search_var.get().lower()
+    filtered = [c for c in contacts if term in c["name"].lower() or term in c["phone"]]
+    refresh_table(filtered)
 
-# Mark/Unmark as Favourite
-def toggle_favourite():
-    selected = tree.selection()
-    if selected:
-        idx = tree.index(selected[0])
-        contacts[idx]["favourite"] = not contacts[idx].get("favourite", False)
-        if contacts[idx]["favourite"]:
-            contacts[idx]["blocked"] = False  # Cannot be both
-        save_contacts()
-        refresh_table()
-    else:
-        messagebox.showinfo("Select", "Select a contact to favourite/unfavourite.")
+# --------- Contact Book UI ---------
+def show_contact_book():
+    global name_var, phone_var, email_var, search_var, tree
+    global input_frame, table_frame, btn_frame, search_frame, welcome_frame
 
-# Mark/Unmark as Blocked
-def toggle_blocked():
-    selected = tree.selection()
-    if selected:
-        idx = tree.index(selected[0])
-        contacts[idx]["blocked"] = not contacts[idx].get("blocked", False)
-        if contacts[idx]["blocked"]:
-            contacts[idx]["favourite"] = False  # Cannot be both
-        save_contacts()
-        refresh_table()
-    else:
-        messagebox.showinfo("Select", "Select a contact to block/unblock.")
+    root = ctk.CTk()
+    root.title("Contact Book")
+    root.state("zoomed")
+    ctk.set_appearance_mode("System")
+    ctk.set_default_color_theme("blue")
 
-# Show favourites
-def show_favourites():
-    favs = [c for c in contacts if c.get("favourite")]
-    if favs:
-        refresh_table(filtered=favs)
-    else:
-        messagebox.showinfo("Favourites", "No favourite contacts yet.")
+    # Menubar
+    menu = tk.Menu(root)
+    root.config(menu=menu)
+    main_menu = tk.Menu(menu, tearoff=0)
+    menu.add_cascade(label="Menu", menu=main_menu)
+    main_menu.add_command(label="➕ Add Contact", command=lambda: show_only("add"))
+    main_menu.add_command(label="👁 Show Contacts", command=lambda: show_only("show"))
+    main_menu.add_separator()
+    main_menu.add_command(label="⭐ Favourites", command=lambda: show_filtered_contacts("favourite"))
+    main_menu.add_command(label="🚫 Blocked", command=lambda: show_filtered_contacts("blocked"))
+    main_menu.add_command(label="🔄 Show All", command=refresh_table)
+    main_menu.add_separator()
+    main_menu.add_command(label="❌ Exit", command=root.quit)
 
-# Show blocked contacts
-def show_blocked():
-    blocked = [c for c in contacts if c.get("blocked")]
-    if blocked:
-        refresh_table(filtered=blocked)
-    else:
-        messagebox.showinfo("Blocked", "No blocked contacts yet.")
+    # Variables
+    name_var = tk.StringVar()
+    phone_var = tk.StringVar()
+    email_var = tk.StringVar()
+    search_var = tk.StringVar()
 
-# GUI setup
-root = tk.Tk()
-root.title("Contact Book")
-root.state("zoomed")  # Full screen
-root.resizable(False, False)
+    # Welcome Frame
+    welcome_frame = ctk.CTkFrame(root)
+    welcome_frame.pack(pady=20)
+    try:
+        img = Image.open("contactbook_image.png").resize((600, 600))
+        img_label = ctk.CTkLabel(welcome_frame, text="", image=ImageTk.PhotoImage(img))
+        img_label.pack()
+    except:
+        ctk.CTkLabel(welcome_frame, text="Welcome to Contact Book").pack()
 
-# Menu Bar
-menu_bar = tk.Menu(root)
-root.config(menu=menu_bar)
+    # Input Frame
+    input_frame = ctk.CTkFrame(root)
+    ctk.CTkLabel(input_frame, text="Name").grid(row=0, column=0)
+    ctk.CTkEntry(input_frame, textvariable=name_var).grid(row=0, column=1)
+    ctk.CTkLabel(input_frame, text="Phone").grid(row=1, column=0)
+    ctk.CTkEntry(input_frame, textvariable=phone_var).grid(row=1, column=1)
+    ctk.CTkLabel(input_frame, text="Email").grid(row=2, column=0)
+    ctk.CTkEntry(input_frame, textvariable=email_var).grid(row=2, column=1)
+    ctk.CTkButton(input_frame, text="Add Contact", command=add_contact).grid(row=3, columnspan=2, pady=10)
 
-main_menu = tk.Menu(menu_bar, tearoff=0)
-menu_bar.add_cascade(label="Menu", menu=main_menu)
+    # Search Frame
+    search_frame = ctk.CTkFrame(root)
+    ctk.CTkLabel(search_frame, text="Search").pack(side="left", padx=5)
+    ctk.CTkEntry(search_frame, textvariable=search_var, width=250).pack(side="left")
+    ctk.CTkButton(search_frame, text="🔍", command=search_contact).pack(side="left", padx=5)
 
-main_menu.add_command(label="⭐ Favourites", command=show_favourites)
-main_menu.add_command(label="🚫 Blocked Contacts", command=show_blocked)
-main_menu.add_command(label="🔄 Clear", command=lambda: refresh_table())
-main_menu.add_separator()
-main_menu.add_command(label="❌ Exit", command=root.quit)
+    # Table Frame
+    table_frame = ctk.CTkFrame(root)
+    scrollbar = tk.Scrollbar(table_frame)
+    scrollbar.pack(side="right", fill="y")
+    tree = ttk.Treeview(table_frame, columns=("Name", "Phone", "Email", "Status"), show="headings", yscrollcommand=scrollbar.set)
+    for col in ("Name", "Phone", "Email", "Status"):
+        tree.heading(col, text=col)
+        tree.column(col, anchor="center")
+    tree.pack(fill="both", expand=True)
+    scrollbar.config(command=tree.yview)
 
-# Input Form
-form_frame = tk.LabelFrame(root, text="Add New Contact", padx=10, pady=10)
-form_frame.pack(pady=10, padx=10, fill="x")
+    # Button Frame
+    btn_frame = ctk.CTkFrame(root)
+    ctk.CTkButton(btn_frame, text="Edit", command=edit_contact).grid(row=0, column=0, padx=10)
+    ctk.CTkButton(btn_frame, text="Delete", command=delete_contact).grid(row=0, column=1, padx=10)
+    ctk.CTkButton(btn_frame, text="⭐ Favourite", command=lambda: toggle_status("favourite")).grid(row=1, column=0)
+    ctk.CTkButton(btn_frame, text="🚫 Block", command=lambda: toggle_status("blocked")).grid(row=1, column=1)
 
-name_var = tk.StringVar()
-phone_var = tk.StringVar()
-email_var = tk.StringVar()
-search_var = tk.StringVar()
+    def show_only(option):
+        welcome_frame.pack_forget()
+        input_frame.pack_forget()
+        search_frame.pack_forget()
+        table_frame.pack_forget()
+        btn_frame.pack_forget()
+        if option == "welcome":
+            welcome_frame.pack(pady=20)
+        elif option == "add":
+            input_frame.pack(pady=10, fill="x", padx=20)
+        elif option == "show":
+            search_frame.pack(pady=5)
+            table_frame.pack(pady=5, fill="both", expand=True)
+            btn_frame.pack(pady=5)
 
-tk.Label(form_frame, text="Name:").grid(row=0, column=0, sticky="w")
-tk.Entry(form_frame, textvariable=name_var, width=25).grid(row=0, column=1, padx=5)
+    # Init data
+    contacts.clear()
+    contacts.extend(load_contacts())
+    refresh_table()
+    search_var.trace_add("write", search_contact)
+    show_only("welcome")
+    root.mainloop()
 
-tk.Label(form_frame, text="Phone:").grid(row=1, column=0, sticky="w")
-tk.Entry(form_frame, textvariable=phone_var, width=25).grid(row=1, column=1, padx=5)
+# --------- App Entry + Login ---------
+def login_screen():
+    def login():
+        u, p = username.get(), password.get()
+        if check_user(u, p):
+            login_win.destroy()
+            global current_user, contacts_file
+            current_user = u
+            contacts_file = f"{u}.json"
+            unlock_app()
+        else:
+            messagebox.showerror("Error", "Invalid credentials!")
 
-tk.Label(form_frame, text="Email:").grid(row=2, column=0, sticky="w")
-tk.Entry(form_frame, textvariable=email_var, width=25).grid(row=2, column=1, padx=5)
+    def signup():
+        u, p = username.get(), password.get()
+        if u and p:
+            save_user(u, p)
+            messagebox.showinfo("Success", "Account created.")
+        else:
+            messagebox.showerror("Error", "All fields required.")
 
-tk.Button(form_frame, text="Add Contact", bg="#4CAF50", fg="white", width=20, command=add_contact).grid(row=3, columnspan=2, pady=10)
+    login_win = ctk.CTk()
+    login_win.title("Login")
+    login_win.geometry("400x500")
+    frame = ctk.CTkFrame(login_win)
+    frame.pack(pady=20)
 
-# Search box
-search_frame = tk.Frame(root)
-search_frame.pack(pady=5)
+    try:
+        img = Image.open("contactbook_image.png").resize((250, 250))
+        img_label = ctk.CTkLabel(frame, image=ImageTk.PhotoImage(img), text="")
+        img_label.pack()
+    except:
+        ctk.CTkLabel(frame, text="Login to Contact Book").pack()
 
-tk.Label(search_frame, text="Search:").pack(side=tk.LEFT, padx=5)
-tk.Entry(search_frame, textvariable=search_var, width=30).pack(side=tk.LEFT)
-tk.Button(search_frame, text="🔍", command=search_contact, bg="black", fg="white").pack(side=tk.LEFT, padx=5)
+    username = tk.StringVar()
+    password = tk.StringVar()
+    ctk.CTkLabel(frame, text="Username").pack()
+    ctk.CTkEntry(frame, textvariable=username).pack()
+    ctk.CTkLabel(frame, text="Password").pack()
+    ctk.CTkEntry(frame, textvariable=password, show="*").pack()
 
-# Treeview + Scroll
-table_frame = tk.Frame(root)
-table_frame.pack(pady=10, fill="both", expand=True)
+    ctk.CTkButton(frame, text="Login", command=login).pack(pady=10)
+    ctk.CTkButton(frame, text="Sign Up", command=signup).pack()
 
-tree_scroll = tk.Scrollbar(table_frame)
-tree_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+    login_win.mainloop()
 
-tree = ttk.Treeview(table_frame, columns=("Name", "Phone", "Email", "Status"), show="headings", yscrollcommand=tree_scroll.set)
-tree.heading("Name", text="Name")
-tree.heading("Phone", text="Phone")
-tree.heading("Email", text="Email")
-tree.heading("Status", text="Status")
-tree.column("Name", width=160, anchor="w")
-tree.column("Phone", width=120, anchor="center")
-tree.column("Email", width=180, anchor="w")
-tree.column("Status", width=80, anchor="center")
-tree.pack(fill="both", expand=True)
+# --------- Unlock Screen ---------
+def unlock_app():
+    def check_password():
+        if pwd_entry.get() == "1317":
+            pwd_win.destroy()
+            show_contact_book()
+        else:
+            messagebox.showerror("Error", "Wrong password!")
 
-tree_scroll.config(command=tree.yview)
+    pwd_win = ctk.CTk()
+    pwd_win.title("Unlock App")
+    pwd_win.geometry("300x150")
 
-# Action Buttons
-btn_frame = tk.Frame(root)
-btn_frame.pack(pady=10)
+    ctk.CTkLabel(pwd_win, text="Enter Password").pack(pady=10)
+    pwd_entry = ctk.CTkEntry(pwd_win, show="*")
+    pwd_entry.pack(pady=5)
+    ctk.CTkButton(pwd_win, text="Unlock", command=check_password).pack(pady=10)
 
-tk.Button(btn_frame, text="Edit Contact", bg="#FFC107", fg="black", width=20, command=edit_contact).grid(row=0, column=0, padx=10)
-tk.Button(btn_frame, text="Delete Selected", bg="#F44336", fg="white", width=20, command=delete_contact).grid(row=0, column=1, padx=10)
+    pwd_win.mainloop()
 
-tk.Button(btn_frame, text="⭐ Favourite", bg="#2196F3", fg="white", width=20, command=toggle_favourite).grid(row=1, column=0, pady=5)
-tk.Button(btn_frame, text="🚫 Block", bg="#9C27B0", fg="white", width=20, command=toggle_blocked).grid(row=1, column=1, pady=5)
-
-# Load and start
-contacts = load_contacts()
-refresh_table()
-
-# Bind search
-search_var.trace_add("write", lambda *args: search_contact())
-
-root.mainloop()
+# Start App
+login_screen()

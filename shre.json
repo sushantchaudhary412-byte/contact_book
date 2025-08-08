@@ -3,81 +3,72 @@
         "name": ".",
         "phone": "4446448464",
         "email": "",
-        "favourite": false,
-        "blocked": false
+        "status": "normal"
     },
     {
         "name": "Aaarav",
         "phone": "8582828741",
         "email": "",
-        "favourite": true,
-        "blocked": false
+        "status": "favourite"
     },
     {
         "name": "Aryan Vishe",
         "phone": "258963147",
         "email": "",
-        "blocked": true,
-        "favourite": false
+        "status": "blocked"
     },
     {
         "name": "baburao",
         "phone": "9321744595",
-        "email": "baburaoapte@xyz.com"
+        "email": "baburaoapte@xyz.com",
+        "status": "normal"
     },
     {
         "name": "Bhavesh",
         "phone": "002021025",
         "email": "",
-        "blocked": true,
-        "favourite": false
+        "status": "blocked"
     },
     {
         "name": "brfwibifiikb",
         "phone": "232522562",
-        "email": ""
+        "email": "",
+        "status": "normal"
     },
     {
         "name": "edexsxer",
         "phone": "3343353211",
-        "email": ""
+        "email": "",
+        "status": "normal"
+    },
+    {
+        "name": "gtudufiyf",
+        "phone": "166486431",
+        "email": "",
+        "status": "normal"
     },
     {
         "name": "pushkar",
         "phone": "252548613",
         "email": "",
-        "favourite": true,
-        "blocked": false
+        "status": "favourite"
     },
     {
         "name": "sbjsvbobob",
         "phone": "7575557775",
-        "email": ""
+        "email": "",
+        "status": "normal"
     },
     {
         "name": "Shreyash Lad",
         "phone": "159357456",
-        "email": ""
+        "email": "",
+        "status": "normal"
     },
     {
-        "name": "Sushant Chaudhary",
-        "phone": "9309960488",
-        "email": "",
-        "favourite": true,
-        "blocked": false
-    },
-    {
-        "name": "Umesh Pandey",
-        "phone": "789456123",
-        "email": "",
-        "favourite": true,
-        "blocked": false
-    },
-    {
-        "name": "vonvnvnovw",
-        "phone": "587413669",
-        "email": "",
-        "blocked": true,
-        "favourite": false
+        "name": "Friend",
+        "phone": "220020014",
+        "email": "dost@gmail.com",
+        "status": "favourite"
     }
 ]
